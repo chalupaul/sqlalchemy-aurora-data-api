@@ -4,7 +4,7 @@ sqlalchemy-aurora-data-api
 
 import json, datetime, re
 
-from sqlalchemy import cast, func, util
+from sqlalchemy import cast, func, util, text
 import sqlalchemy.sql.sqltypes as sqltypes
 from sqlalchemy.dialects.postgresql.base import PGDialect
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID, DATE, TIME, TIMESTAMP, ARRAY, ENUM
@@ -144,10 +144,16 @@ class AuroraMySQLDataAPIDialect(MySQLDialect):
         return aurora_data_api
 
     def _detect_charset(self, connection):
-        return connection.execute("SHOW VARIABLES LIKE 'character_set_client'").fetchone()[1]
+        return connection.execute(text("SHOW VARIABLES LIKE 'character_set_client'")).fetchone()[1]
 
     def _extract_error_code(self, exception):
-        return exception.args[0].value
+        error_str = str(exception.args[0])
+        match = re.search(r"Error code:\s*(\d+);\s*SQLState:\s*([A-Z0-9]+)", error_str)
+        error_code = None
+        if match:
+            error_code = int(match.group(1))
+            # sql_state = match.group(2)
+        return error_code
 
 
 class AuroraPostgresDataAPIDialect(PGDialect):
